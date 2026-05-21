@@ -131,3 +131,32 @@ Z3 invariants (correctness), hierarchy patterns (security), test suite (function
 
 **L-50: EntropyDetector catches a new class of attacks.**
 Shannon entropy + special char ratio + sliding window detects GCG/suffix attacks that regex can't see. Moved suffix detection from 0% to 11.5%. Not a complete solution, but a legitimate new detection signal that has value independent of any benchmark.
+
+---
+
+## RND-N8N-001 — n8n Detection Pipeline McGyver Fixes (2026-05-21)
+
+Session: RND-N8N-001 | MyCMO FY2026 R&D Project | n8n v4.0.0 Mac Studio Docker
+
+Seven sequential blockers resolved building the AI detection pipeline (Originality.AI + GPTZero + Winston AI → PostgreSQL → Google Sheets).
+
+**L-51: MCP gateway tools are not callable via HTTP POST from n8n.**
+The VPS MCP gateway (mcp.mycmo.com.au) requires Cloudflare Access — three simultaneous headers (Authorization Bearer + CF-Access-Client-Id + CF-Access-Client-Secret). n8n Header Auth credential type sends only one header. No workaround exists within n8n's credential system. Solution: call detector APIs directly — Originality.AI, GPTZero, Winston AI each have public REST APIs that require only a single API key header.
+
+**L-52: n8n credential Value field silently stores blank when fx (Expression) mode is ON.**
+The fx button in n8n credential forms toggles Expression mode. When ON, pasting a literal value stores __n8n_BLANK_VALUE_xxx as a placeholder instead of the actual text. Always verify the fx button is OFF (Fixed mode) before pasting credential values.
+
+**L-53: Originality.AI API header is X-OAI-API-KEY, not X-API-KEY.**
+Non-standard header name. Using X-API-KEY returns 422 "Enterprise Subscription Required" even with a valid key and active Enterprise plan. Always verify API-specific header names from documentation.
+
+**L-54: n8n HTTP Request JSON body mode cannot contain expressions.**
+Using ={{ expression }} syntax inside the JSON Body field causes "The value in the JSON Body field is not valid JSON" at save time. Solution: change Specify Body from Using JSON to Using Fields Below (keypair mode). Expressions in keypair value fields evaluate correctly at runtime.
+
+**L-55: n8n Header Auth credential Name field IS the HTTP header name sent in the request.**
+The Name field is not a display label — it is the literal HTTP header name transmitted. A name like "Winston AI" (with space) produces "Header name must be a valid HTTP token" at runtime. Must be a valid HTTP token: Authorization, X-OAI-API-KEY, x-api-key, etc.
+
+**L-56: Winston AI API v1 endpoint is deprecated — use v2.**
+POST https://api.gowinston.ai/v1/ai-detection/text returns 404. Current endpoint: POST https://api.gowinston.ai/v2/ai-content-detection. Body fields remain: {text, language}.
+
+**L-57: PostgreSQL NUMERIC(6,4) overflows on detection score = 100.**
+NUMERIC(6,4) permits values up to 99.9999. A score of exactly 100 overflows. Use NUMERIC(8,2) for all detection score columns. Fix: DROP VIEW rnd_composite_scores CASCADE; ALTER TABLE rnd_detection_results ALTER COLUMN raw_score TYPE NUMERIC(8,2); ALTER TABLE rnd_detection_results ALTER COLUMN normalised_score TYPE NUMERIC(8,2); then recreate dependent views.
